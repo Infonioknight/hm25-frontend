@@ -140,6 +140,24 @@ export const HM25Provider = ({ children }) => {
         }
     }
 
+    const evmInit = async (code) => {
+        if (!connected || !wallet) return
+        try {
+            dispatch({ type: 'SET_LOADING', payload: true })
+            const tick = await getTick()
+            // Build EVM INIT Payload
+            const broadcastRes = await broadcastTx(finalTx)
+            console.log('Burn TX result:', broadcastRes)
+            return { targetTick: tick + TICK_OFFSET, txResult: broadcastRes }
+        } catch (err) {
+            console.error(err)
+            dispatch({ type: 'SET_ERROR', payload: 'Failed to burn coins' })
+            throw err
+        } finally {
+            dispatch({ type: 'SET_LOADING', payload: false })
+        }
+    }
+
     return (
         <HM25Context.Provider value={{ state, echo, burn, balance, walletPublicIdentity, fetchBalance }}>
             {children}

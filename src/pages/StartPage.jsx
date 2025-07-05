@@ -47,6 +47,14 @@ function StartPage() {
                 >
                     Burn Coin
                 </button>
+                <button
+                    className="bg-primary-40 p-3 text-black rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    onClick={() => navigate('/evm')}
+                    disabled={isDisabled}
+                    title={isDisabled ? 'Insufficient balance to burn coins.' : ''}
+                >
+                    EVM Page
+                </button>
             </div>
             <div className="mt-8 p-4 bg-gray-800 rounded-lg border border-gray-700 text-white">
                 <p><strong>Number of Echos:</strong> {state.stats.numberOfEchoCalls.toString()}</p>
