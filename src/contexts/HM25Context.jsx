@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useReducer, useState } from 'react'
-import { fetchHM25Stats, buildEchoTx, buildBurnTx } from '../components/api/HM25Api'
+import { fetchHM25Stats, buildEchoTx, buildBurnTx, hexStringTo8BitArrays } from '../components/api/HM25Api'
 import { QubicHelper } from '@qubic-lib/qubic-ts-library/dist/qubicHelper'
 import { TICK_OFFSET, useConfig } from './ConfigContext'
 import { useQubicConnect } from './QubicConnectContext'
+import { buildEVMInitTx } from '../components/api/HM25Api'
 
 const HM25Context = createContext()
 
@@ -140,14 +141,18 @@ export const HM25Provider = ({ children }) => {
         }
     }
 
+    
     const evmInit = async (code) => {
         if (!connected || !wallet) return
         try {
-            dispatch({ type: 'SET_LOADING', payload: true })
-            const tick = await getTick()
-            // Build EVM INIT Payload
-            const broadcastRes = await broadcastTx(finalTx)
-            console.log('Burn TX result:', broadcastRes)
+            byteArray = hexStringTo8BitArrays(code);
+            for(let i = 0 ; i < byteArray.length / 1024 ; i++) {
+                dispatch({ type: 'SET_LOADING', payload: true })
+                const tick = await getTick()
+                const unsignedTx = buildEVMInitTx(tick, code)
+                const broadcastRes = await broadcastTx(finalTx)
+                console.log('Burn TX result:', broadcastRes)
+            }
             return { targetTick: tick + TICK_OFFSET, txResult: broadcastRes }
         } catch (err) {
             console.error(err)
