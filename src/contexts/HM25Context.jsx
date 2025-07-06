@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useReducer, useState } from 'react'
-import { fetchHM25Stats, buildEchoTx, buildBurnTx, hexStringTo8BitArrays } from '../components/api/HM25Api'
+import { fetchHM25Stats, buildEchoTx, buildBurnTx, hexStringToUint8Array } from '../components/api/HM25Api' // <<< Changed import to new function
 import { QubicHelper } from '@qubic-lib/qubic-ts-library/dist/qubicHelper'
 import { TICK_OFFSET, useConfig } from './ConfigContext'
 import { useQubicConnect } from './QubicConnectContext'
-import { buildEVMInitTx } from '../components/api/HM25Api'
+import { buildEVMInitTx, HM25_CONTRACT_PUBLIC_KEY } from '../components/api/HM25Api' // <<< Import HM25_CONTRACT_PUBLIC_KEY
 import { Buffer } from 'buffer'
 
 const HM25Context = createContext()
@@ -167,26 +167,64 @@ export const HM25Provider = ({ children }) => {
     };
 
 
-    const evmInit = async (code) => {
-        if (!connected || !wallet) return
+     const evmInit = async (code) => {
+        if (!connected || !wallet) {
+            console.warn("Wallet not connected or available.");
+            return;
+        }
+
         try {
             const idPackage = await qHelper.createIdPackage(walletPublicIdentity);
-            const byteArray = hexStringTo8BitArrays(code);
-            dispatch({ type: 'SET_LOADING', payload: true })
-            for (let i = 0; i < byteArray.length / 1024; i++) {
-                const tick = await getTick()
-                const tx = await buildEVMInitTx('WEVWZOHASCHODGRVRFKZCGUDGHEDWCAZIZXWBUHZEAMNVHKZPOIZKUEHNQSJ', idPackage.publicId, tick, byteArray.slice(i * 1024, (i * 1024) + 1024))
-                const res = await tx.build(idPackage.privateKey);
-                const broadcastRes = await broadcastTx(res)
-                console.log('Burn TX result:', broadcastRes)
-                // return { targetTick: tick + TICK_OFFSET, txResult: broadcastRes }
+            // 1. Convert hex code to Uint8Array once
+            const fullByteCode = hexStringToUint8Array(code); // <<< Use the correct conversion function
+
+            // Determine chunk size (Qubic contracts are often 1KB chunks)
+            const CHUNK_SIZE = 1024; // 1KB
+            const numChunks = Math.ceil(fullByteCode.length / CHUNK_SIZE);
+
+            dispatch({ type: 'SET_LOADING', payload: true });
+
+            console.log(`Deploying EVM contract in ${numChunks} chunks...`);
+
+            for (let i = 0; i < numChunks; i++) {
+                const tick = await getTick();
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, fullByteCode.length);
+                const codeChunk = fullByteCode.slice(start, end); // <<< Correctly slice the Uint8Array
+
+                console.log(`Building transaction for chunk ${i + 1}/${numChunks} at tick ${tick + TICK_OFFSET}`);
+
+                // IMPORTANT: buildEVMInitTx no longer needs destinationPublicKey as a param
+                const unsignedTx = await buildEVMInitTx(
+                    idPackage.publicId,
+                    tick,
+                    codeChunk
+                );
+
+                const signedTxRaw = await unsignedTx.build(idPackage.privateKey); // Assuming .build() takes private key and returns Uint8Array
+                
+                // You were using broadcastTx(res) where res was the output of unsignedTx.build().
+                // Your customBroadcastTx function takes a Uint8Array, so this should work.
+                const broadcastRes = await broadcastTx(signedTxRaw); 
+                // OR: If broadcastTx from QubicConnectContext expects a QubicTransaction object,
+                //     you might need to adjust or use your customBroadcastTx as you defined.
+                //     Let's assume broadcastTx from QubicConnectContext expects the raw signed Uint8Array,
+                //     which is typical.
+
+                console.log(`EVM Init TX chunk ${i + 1} result:`, broadcastRes); // <<< Updated log message
+
+                if (broadcastRes && broadcastRes.code !== 0) { // Assuming 0 means success
+                    throw new Error(`Broadcast failed for chunk ${i + 1}: ${broadcastRes.message || JSON.stringify(broadcastRes)}`);
+                }
             }
+            console.log('EVM contract deployment completed.');
+
         } catch (err) {
-            console.error(err)
-            dispatch({ type: 'SET_ERROR', payload: 'Failed to burn coins' })
-            throw err
+            console.error('Error deploying EVM contract:', err); // <<< Updated error message
+            dispatch({ type: 'SET_ERROR', payload: 'Failed to deploy EVM contract' }); // <<< Updated error message
+            throw err;
         } finally {
-            dispatch({ type: 'SET_LOADING', payload: false })
+            dispatch({ type: 'SET_LOADING', payload: false });
         }
     }
 
