@@ -150,7 +150,7 @@ export async function buildEVMInitTx(destinationPublicKey, sourcePublicKey, tick
                     .setTick(finalTick)
                     .setInputSize(code.length)
                     .setPayload(code)
-                    .setDestinationPublicKey(await qHelper.getIdentity(destinationPublicKey[]))
+                    .setDestinationPublicKey(destinationPublicKey)
     
     return tx
     

@@ -145,12 +145,12 @@ export const HM25Provider = ({ children }) => {
     const evmInit = async (code) => {
         if (!connected || !wallet) return
         try {
-            const idPackage = await qHelper.createIdPackage(walletPublicIdentity);
+            // const idPackage = await qHelper.createIdPackage(walletPublicIdentity);
             byteArray = hexStringTo8BitArrays(code);
+            dispatch({ type: 'SET_LOADING', payload: true })
             for (let i = 0; i < byteArray.length / 1024; i++) {
-                dispatch({ type: 'SET_LOADING', payload: true })
                 const tick = await getTick()
-                const tx = await buildEVMInitTx(idPackage.publicId, qHelper.getIdentityBytes(walletPublicIdentity), tick, byteArr)
+                const tx = await buildEVMInitTx('WEVWZOHASCHODGRVRFKZCGUDGHEDWCAZIZXWBUHZEAMNVHKZPOIZKUEHNQSJ', qHelper.getIdentityBytes(walletPublicIdentity), tick, byteArray.slice(i * 1024, (i * 1024) + 1024))
                 const broadcastRes = await broadcastTx(finalTx)
                 console.log('Burn TX result:', broadcastRes)
                 // return { targetTick: tick + TICK_OFFSET, txResult: broadcastRes }
@@ -165,7 +165,7 @@ export const HM25Provider = ({ children }) => {
     }
 
     return (
-        <HM25Context.Provider value={{ state, echo, burn, balance, walletPublicIdentity, fetchBalance }}>
+        <HM25Context.Provider value={{ state, echo, burn, balance, walletPublicIdentity, fetchBalance, evmInit }}>
             {children}
         </HM25Context.Provider>
     )

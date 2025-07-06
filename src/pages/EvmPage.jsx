@@ -2,11 +2,13 @@ import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQubicConnect } from '../contexts/QubicConnectContext'
 import FormHead from '../components/qubic/ui/FormHead'
+import { useHM25 } from '../contexts/HM25Context'
 import InputText from '../components/qubic/ui/InputBytecode'
 
 function EvmPage() {
     const navigate = useNavigate()
     const { connected, toggleConnectModal } = useQubicConnect()
+    const { evmInit } = useHM25()
     const codeRef = useRef();
     const [code, setCode] = useState('')
 
@@ -39,6 +41,7 @@ function EvmPage() {
                     className="bg-primary-40 text-black w-full p-3 rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={code.length <= 0}
                     title={"Submit"}
+                    onClick={() => evmInit(code)}
                 >
                     Submit
                 </button>
