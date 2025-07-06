@@ -127,7 +127,7 @@ export const HM25Provider = ({ children }) => {
         try {
             dispatch({ type: 'SET_LOADING', payload: true })
             const tick = await getTick()
-            const unsignedTx = await buildBurnTx(qHelper, qHelper.getIdentityBytes(walletPublicIdentity), tick, amount)
+            const unsignedTx = await buildBurnTx(qHelper, qHelper.getIdentity(walletPublicIdentity), tick, amount)
             const finalTx = await signTransaction(unsignedTx)
             const broadcastRes = await broadcastTx(finalTx)
             console.log('Burn TX result:', broadcastRes)
@@ -141,19 +141,20 @@ export const HM25Provider = ({ children }) => {
         }
     }
 
-    
+
     const evmInit = async (code) => {
         if (!connected || !wallet) return
         try {
+            const idPackage = await qHelper.createIdPackage(walletPublicIdentity);
             byteArray = hexStringTo8BitArrays(code);
-            for(let i = 0 ; i < byteArray.length / 1024 ; i++) {
+            for (let i = 0; i < byteArray.length / 1024; i++) {
                 dispatch({ type: 'SET_LOADING', payload: true })
                 const tick = await getTick()
-                const unsignedTx = buildEVMInitTx(tick, code)
+                const tx = await buildEVMInitTx(idPackage.publicId, qHelper.getIdentityBytes(walletPublicIdentity), tick, byteArr)
                 const broadcastRes = await broadcastTx(finalTx)
                 console.log('Burn TX result:', broadcastRes)
+                // return { targetTick: tick + TICK_OFFSET, txResult: broadcastRes }
             }
-            return { targetTick: tick + TICK_OFFSET, txResult: broadcastRes }
         } catch (err) {
             console.error(err)
             dispatch({ type: 'SET_ERROR', payload: 'Failed to burn coins' })
