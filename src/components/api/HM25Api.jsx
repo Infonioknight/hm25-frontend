@@ -2,9 +2,8 @@ import { Buffer } from 'buffer'
 import base64 from 'base-64'
 import { TICK_OFFSET } from "../../contexts/ConfigContext"
 import { QubicTransaction } from '@qubic-lib/qubic-ts-library/dist/qubic-types/QubicTransaction'
-import { QubicHelper } from '@qubic-lib/qubic-ts-library/dist/qubicHelper'
+import { DynamicPayload } from '@qubic-lib/qubic-ts-library/dist/qubic-types/DynamicPayload'
 
-const qHelper = new QubicHelper()
 export const HEADERS = {
     'accept': 'application/json',
     'Content-Type': 'application/json',
@@ -144,14 +143,16 @@ export async function buildBurnTx(qHelper, sourcePublicKey, tick, amount) {
 
 export async function buildEVMInitTx(destinationPublicKey, sourcePublicKey, tick, code) {
     const finalTick = tick + TICK_OFFSET
+    const payload = new DynamicPayload(code.length)
+    payload.setPayload(code)
     const tx = new QubicTransaction()
-                    .setSourcePublicKey(sourcePublicKey)
-                    .setAmount(0)
-                    .setTick(finalTick)
-                    .setInputSize(code.length)
-                    .setPayload(code)
-                    .setDestinationPublicKey(destinationPublicKey)
-    
+        .setSourcePublicKey(sourcePublicKey)
+        .setAmount(500)
+        .setTick(finalTick)
+        .setInputType(1)
+        // .setPayload(payload)
+        .setDestinationPublicKey(destinationPublicKey)
+
     return tx
-    
+
 }

@@ -4,6 +4,7 @@ import { QubicHelper } from '@qubic-lib/qubic-ts-library/dist/qubicHelper'
 import { TICK_OFFSET, useConfig } from './ConfigContext'
 import { useQubicConnect } from './QubicConnectContext'
 import { buildEVMInitTx } from '../components/api/HM25Api'
+import { Buffer } from 'buffer'
 
 const HM25Context = createContext()
 
@@ -141,17 +142,42 @@ export const HM25Provider = ({ children }) => {
         }
     }
 
+    function uint8ArrayToBase64(uint8Array) {
+        return Buffer.from(uint8Array).toString('base64');
+    }
+
+    const customBroadcastTx = async (tx) => {
+        const url = `${httpEndpoint}/broadcast-transaction`;
+        const txEncoded = uint8ArrayToBase64(tx);
+        const body = { encodedTransaction: txEncoded };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    };
+
 
     const evmInit = async (code) => {
         if (!connected || !wallet) return
         try {
-            // const idPackage = await qHelper.createIdPackage(walletPublicIdentity);
-            byteArray = hexStringTo8BitArrays(code);
+            const idPackage = await qHelper.createIdPackage(walletPublicIdentity);
+            const byteArray = hexStringTo8BitArrays(code);
             dispatch({ type: 'SET_LOADING', payload: true })
             for (let i = 0; i < byteArray.length / 1024; i++) {
                 const tick = await getTick()
-                const tx = await buildEVMInitTx('WEVWZOHASCHODGRVRFKZCGUDGHEDWCAZIZXWBUHZEAMNVHKZPOIZKUEHNQSJ', qHelper.getIdentityBytes(walletPublicIdentity), tick, byteArray.slice(i * 1024, (i * 1024) + 1024))
-                const broadcastRes = await broadcastTx(finalTx)
+                const tx = await buildEVMInitTx('WEVWZOHASCHODGRVRFKZCGUDGHEDWCAZIZXWBUHZEAMNVHKZPOIZKUEHNQSJ', idPackage.publicId, tick, byteArray.slice(i * 1024, (i * 1024) + 1024))
+                const res = await tx.build(idPackage.privateKey);
+                const broadcastRes = await broadcastTx(res)
                 console.log('Burn TX result:', broadcastRes)
                 // return { targetTick: tick + TICK_OFFSET, txResult: broadcastRes }
             }
